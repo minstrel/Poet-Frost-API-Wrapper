@@ -13,13 +13,14 @@ module PoetFrostAPI
 
   # Register a work on Po.et.
   #
-  # Usage: PoetFrostAPI.create_work(name: 'Work Name',
-  #                                 datePublished: DateTime.now.iso8601,
-  #                                 dateCreated: DateTime.now.iso8601,
-  #                                 author: 'Author Name'
-  #                                 tags: 'Tag1, Tag2'
-  #                                 content: 'Content body'
-  #                                 )
+  # Usage:
+  # PoetFrostAPI.create_work(name: 'Work Name',
+  #                          datePublished: DateTime.now.iso8601,
+  #                          dateCreated: DateTime.now.iso8601,
+  #                          author: 'Author Name'
+  #                          tags: 'Tag1, Tag2'
+  #                          content: 'Content body'
+  #                          )
   #
   # Returns a string with the workid that was registered.
   def PoetFrostAPI.create_work(args = {})
@@ -27,17 +28,20 @@ module PoetFrostAPI
     req = Net::HTTP::Post.new(@@uri.path)
     req.content_type = 'application/json'
     req['token'] = @@api_key
-    req.body = { name: args[:name],
-                 datePublished: args[:datePublished] || DateTime.now.iso8601,
-                 dateCreated: args[:dateCreated] || DateTime.now.iso8601,
-                 author: args[:author],
-                 tags: args[:tags] || '',
-                 content: args[:content]
-    }.to_json
+    args.keep_if { |k, v| [:name,
+                           :datePublished,
+                           :dateCreated,
+                           :author,
+                           :tags,
+                           :content].include?(k) }
+    args[:datePublished] ||= DateTime.now.iso8601
+    args[:dateCreated] ||= DateTime.now.iso8601
+    args[:tags] ||= ''
+    req.body = args.to_json
     res = @@http.request(req)
     JSON.parse(res.body)['workId']
   rescue => e
-    puts "failed #{e}"
+    "failed #{e}"
   end
 
   # Retrieve a specific work from Po.et, using the workId returned from
@@ -54,7 +58,7 @@ module PoetFrostAPI
     res = @@http.request(req)
     JSON.parse(res.body)
   rescue => e
-    puts "failed #{e}"
+    "failed #{e}"
   end
 
   # Retrieve all works submitted by your Frost API Token.
@@ -66,7 +70,7 @@ module PoetFrostAPI
     res = @@http.request(req)
     JSON.parse(res.body)
   rescue => e
-    puts "failed #{e}"
+    "failed #{e}"
   end
 
 end
