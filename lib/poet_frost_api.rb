@@ -4,6 +4,8 @@ require 'date'
 
 # To use any of the methods, register an API key at https://frost.po.et/
 # and save it as the environment variable FROST_TOKEN.
+# For the current easiest way to integrate to Rails, see the github readme
+# here: https://github.com/minstrel/Poet-Frost-API-Wrapper
 module PoetFrostAPI
 
   @@api_key = ENV['FROST_TOKEN']
@@ -21,6 +23,9 @@ module PoetFrostAPI
   #                          tags: 'Tag1, Tag2'
   #                          content: 'Content body'
   #                          )
+  #
+  # datePublished and dateCreated will default to current datetime if omitted
+  # tags will default to blank string if omitted
   #
   # Returns a string with the workid that was registered.
   def PoetFrostAPI.create_work(args = {})
@@ -47,7 +52,8 @@ module PoetFrostAPI
   # Retrieve a specific work from Po.et, using the workId returned from
   # create_work.
   #
-  # Usage: PoetFrostAPI.get_work(workId)
+  # Usage:
+  # PoetFrostAPI.get_work(workId)
   #
   # Returns a hash with the created fields.
   def PoetFrostAPI.get_work(workId)
@@ -63,6 +69,10 @@ module PoetFrostAPI
 
   # Retrieve all works submitted by your Frost API Token.
   #
+  # Usage:
+  # PoetFrostAPI.get_all_works
+  #
+  # Returns an array of individual works (hashes)
   def PoetFrostAPI.get_all_works
     req = Net::HTTP::Get.new(@@uri.path)
     req.content_type = 'application/json'
