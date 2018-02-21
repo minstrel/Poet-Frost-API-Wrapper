@@ -61,7 +61,7 @@ The api\_key field will default to the environment variable FROST\_TOKEN if omit
 
 For now, the easiest method to integrate this into Rails is to simply add the
 gem to your Gemfile and, in the model that will contain the fields to submit,
-do the following, where article\_name, created\_at, author, etc correspond
+add the following, where article\_name, created\_at, author, etc correspond
 to the appropriate fields in your database model.
 
 Yo dawg, I heard you like wrappers...
@@ -78,7 +78,7 @@ class MyBlog < ApplicationRecord
                              author: author,
                              tags: tags, # Can omit
                              content: content,
-                             api_key: api_key # Omit if using FROST_TOKEN env variable
+                             api_key: frost_token # Omit if using FROST_TOKEN env variable
                              )
   end
 
@@ -92,20 +92,9 @@ is an instance of MyBlog):
 @blog.post_to_poet
 ```
 
-I'm working on securely integrating the API token into the database model, so
-Rails users can either use the environment variable, for instance in a single
-user blog, or use a database field in a multiuser Rails app.
+If you will be using per-user API keys, I suggest encrypting the api key field
+with [attr\_encrypted](https://github.com/attr-encrypted/attr_encrypted).
 
-For now, you can manually pass it in, if desired, but ultimately I want to
-do something like:
-
-```ruby
-args[:api_key] || self.frost_token || ENV['FROST_TOKEN']
-```
-
-So it will look for a specified token override, a frost\_token field on the
-current model and a FROST\_TOKEN environment variable, in that order.
-
-After that, I'll see if the configuration can be made easier, although it
-will always involve telling each model which field to map to which API field,
-so I'm not sure how much more concise it can get.
+I'll see if the configuration can be made easier, although it will always 
+involve telling each model which field to map to which API field, so I'm not
+sure how much more concise it can get.
