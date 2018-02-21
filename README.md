@@ -2,8 +2,10 @@
 
 ## Setup
 
-Register an API Token at https://frost.po.et/ and set it as the environment
-variable FROST\_TOKEN
+Register an API Token at https://frost.po.et/
+Set it as the environment variable FROST\_TOKEN unless you plan to pass it in
+directly to the methods (for instance, on a multi-user blog where each user
+has their own API key).
 
 ## Methods
 
@@ -13,23 +15,25 @@ Posts a work to Po.et.  Returns a string with the workId that was created, or
 any error messages.
 
 ```ruby
-PoetFrostAPI.create_work(name: 'Work Name',
+PoetFrostAPI.create_work(name: 'Work Name', # Required
                          datePublished: DateTime.now.iso8601,
                          dateCreated: DateTime.now.iso8601,
-                         author: 'Author Name',
+                         author: 'Author Name', # Required
                          tags: 'Tag1, Tag2',
-                         content: 'Content body'
+                         content: 'Content body', # Required
+                         api_key: 'API_key'
                          )
 ```
 
-Both date fields and the tag field can be omitted.
-
 The date fields should be iso8601 formatted strings.  They will default to the
-current date and time if left blank.
+current date and time if omitted.
 
-The tag field will default to an empty string if left blank.
+The tag field will default to an empty string if omitted.
 
-For the time being, anything beyond these fields will be ignored.  Future plans are for the API to accept arbitrary metadata.
+The api\_key field will default to the environment variable FROST\_TOKEN if omitted.
+
+For the time being, anything beyond these fields will be ignored.
+Po.et's future plans are for the API to accept arbitrary metadata.
 
 ### Get a specific work by workId
 
@@ -37,16 +41,21 @@ Submit a workId (such as returned from create\_work) and return a hash of the
 submitted work.
 
 ```ruby
-PoetFrostAPI.get_work('workId')
+PoetFrostAPI.get_work('workId', # Required
+                      api_key: 'API_key')
 ```
+
+The api\_key field will default to the environment variable FROST\_TOKEN if omitted.
 
 ### Get all works submitted by your API token
 
 Submit a request and return an array of individual works (hashes).
 
 ```ruby
-PoetFrostAPI.get_all_works
+PoetFrostAPI.get_all_works(api_key: 'API_key')
 ```
+
+The api\_key field will default to the environment variable FROST\_TOKEN if omitted.
 
 ## Rails-specific
 
@@ -64,11 +73,12 @@ class MyBlog < ApplicationRecord
 
   def post_to_poet
     PoetFrostAPI.create_work(name: article_name,
-                             datePublished: created_at.iso8601,
-                             dateCreated: created_at.iso8601,
+                             datePublished: created_at.iso8601, # Can omit
+                             dateCreated: created_at.iso8601, # Can omit
                              author: author,
-                             tags: tags,
-                             content: content
+                             tags: tags, # Can omit
+                             content: content,
+                             api_key: api_key # Omit if using FROST_TOKEN env variable
                              )
   end
 
@@ -85,6 +95,16 @@ is an instance of MyBlog):
 I'm working on securely integrating the API token into the database model, so
 Rails users can either use the environment variable, for instance in a single
 user blog, or use a database field in a multiuser Rails app.
+
+For now, you can manually pass it in, if desired, but ultimately I want to
+do something like:
+
+```ruby
+args[:api_key] || self.frost_token || ENV['FROST_TOKEN']
+```
+
+So it will look for a specified token override, a frost\_token field on the
+current model and a FROST\_TOKEN environment variable, in that order.
 
 After that, I'll see if the configuration can be made easier, although it
 will always involve telling each model which field to map to which API field,

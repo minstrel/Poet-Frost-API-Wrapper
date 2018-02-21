@@ -19,11 +19,13 @@ module PoetFrostAPI
   # PoetFrostAPI.create_work(name: 'Work Name',
   #                          datePublished: DateTime.now.iso8601,
   #                          dateCreated: DateTime.now.iso8601,
-  #                          author: 'Author Name'
-  #                          tags: 'Tag1, Tag2'
-  #                          content: 'Content body'
+  #                          author: 'Author Name',
+  #                          tags: 'Tag1, Tag2',
+  #                          content: 'Content body',
+  #                          api_key: 'API_key'
   #                          )
   #
+  # api_key will default to ENV['FROST_TOKEN'] if omitted
   # datePublished and dateCreated will default to current datetime if omitted
   # tags will default to blank string if omitted
   #
@@ -32,13 +34,14 @@ module PoetFrostAPI
 
     req = Net::HTTP::Post.new(@@uri.path)
     req.content_type = 'application/json'
-    req['token'] = @@api_key
     args.keep_if { |k, v| [:name,
                            :datePublished,
                            :dateCreated,
                            :author,
                            :tags,
-                           :content].include?(k) }
+                           :content,
+                           :api_key].include?(k) }
+    req['token'] = args[:api_key] || @@api_key
     args[:datePublished] ||= DateTime.now.iso8601
     args[:dateCreated] ||= DateTime.now.iso8601
     args[:tags] ||= ''
@@ -53,14 +56,17 @@ module PoetFrostAPI
   # create_work.
   #
   # Usage:
-  # PoetFrostAPI.get_work(workId)
+  # PoetFrostAPI.get_work(workId, api_key: 'API_key')
+  #
+  # api_key will default to ENV['FROST_TOKEN'] if omitted
   #
   # Returns a hash with the created fields.
-  def PoetFrostAPI.get_work(workId)
+  def PoetFrostAPI.get_work(workId, args = {})
     uri = @@uri + workId
     req = Net::HTTP::Get.new(uri.path)
     req.content_type = 'application/json'
-    req['token'] = @@api_key
+    args.keep_if { |k, v| [:api_key].include?(k) }
+    req['token'] = args[:api_key] || @@api_key
     res = @@http.request(req)
     JSON.parse(res.body)
   rescue => e
@@ -70,13 +76,16 @@ module PoetFrostAPI
   # Retrieve all works submitted by your Frost API Token.
   #
   # Usage:
-  # PoetFrostAPI.get_all_works
+  # PoetFrostAPI.get_all_works(api_key: 'API_key')
+  #
+  # api_key will default to ENV['FROST_TOKEN'] if omitted
   #
   # Returns an array of individual works (hashes)
-  def PoetFrostAPI.get_all_works
+  def PoetFrostAPI.get_all_works(args = {})
     req = Net::HTTP::Get.new(@@uri.path)
     req.content_type = 'application/json'
-    req['token'] = @@api_key
+    args.keep_if { |k, v| [:api_key].include?(k) }
+    req['token'] = args[:api_key] || @@api_key
     res = @@http.request(req)
     JSON.parse(res.body)
   rescue => e
