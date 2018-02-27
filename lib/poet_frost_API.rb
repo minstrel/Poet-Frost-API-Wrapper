@@ -120,36 +120,35 @@ module PoetFrostConfig
   end
 end
 
-module PoetFrostUse
-  # Testing accessing the class instance variable
-  def putconfig
-    puts self.class.poet_frost_config
-  end
+module PoetFrostAPI
 
-  # TODO create_work
-  # Use defined? to see if model field exists, then use instance_eval if it does, string literal if it doesn't
-  # Or use Class.method_defined? :method (this is straight true/false, whereas defined? returns the method's class
-  #
-  def create_work
+  # Post the work to Po.et
+  def post_to_poet
     req = Net::HTTP::Post.new(PoetFrostConfig::FROST_URI.path)
     req.content_type = 'application/json'
     args = self.class.poet_frost_config.to_h
-    # TODO go through the args.  If the value is a model field, instance_eval it.  If it isn't a model field, pass the value in directly (as a string)
+    # Go through the config args and pass them on appropriately.
     args.each do |k,v|
-      if self.class.method_defined? v
-        # TODO Need to check here if the field is a date field and, if so, do .iso8601 on it.
+      # Ignore undefined values
+      if v == nil
+        args.delete(k)
+      # If the value is a model field, instance_eval it so we can pull in the actual value from the object.
+      elsif self.class.method_defined? v
+        # Check if the field is a date field and, if so, do .iso8601 on it.
         # If not, pass the field value in as-is.
         if self.instance_eval(v.to_s).class.method_defined? :iso8601
           args[k] = self.instance_eval(v.to_s).iso8601
         else
           args[k] = self.instance_eval(v.to_s)
         end
+      # If it isn't a model field, pass the value in directly (as a string)
+      # TODO test this
       else
         args[k] = v.to_s
       end
     end
     # Can do away with this after the api starts accepting arbitrary fields
-    # We'll have to replace it with something to ignore the work_id field, which will be blank.
+    # Replace it with delete_if to take out work_id.
     args.keep_if { |k, v| [:name,
                            :datePublished,
                            :dateCreated,
@@ -157,12 +156,15 @@ module PoetFrostUse
                            :tags,
                            :content,
                            :api_key].include?(k) }
+    # Set the token field to the api_key field if it exists, then delete it so it doesn't get passed on.
     req['token'] = args[:api_key] || PoetFrostConfig::FROST_API_KEY
+    args.delete(:api_key) if args[:api_key]
     args[:datePublished] ||= DateTime.now.iso8601
     args[:dateCreated] ||= DateTime.now.iso8601
     args[:tags] ||= ''
     req.body = args.to_json
     res = PoetFrostConfig::FROST_HTTP.request(req)
+    # TODO if the model has a workId field defined, save the workId in that field
     JSON.parse(res.body)['workId']
   rescue => e
     "failed #{e}"
