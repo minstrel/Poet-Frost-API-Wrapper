@@ -165,6 +165,12 @@ module PoetFrostAPI
     req.body = args.to_json
     res = PoetFrostConfig::FROST_HTTP.request(req)
     # TODO if the model has a workId field defined, save the workId in that field
+    # If we're running in Rails, use example: @post.update_column(:author, "Donald")
+    # This saves and updates the timestamps.
+    # If we're not using Rails, just update the attribute.
+    # Now, how to tell if we're running in Rails?
+    # This checks for ActiveRecord instead of Rails, but that might be better even.
+    # if defined?(ActiveRecord::Base) && @post.is_a?(ActiveRecord::Base)
     JSON.parse(res.body)['workId']
   rescue => e
     "failed #{e}"
