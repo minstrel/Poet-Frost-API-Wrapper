@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'poet_frost_API'
-  s.version     = '0.0.5'
-  s.date        = '2018-02-27'
+  s.version     = '0.0.6'
+  s.date        = '2018-03-01'
   s.summary     = 'API Wrapper for Po.et Frost'
   s.description = 'A Ruby wrapper for the Po.et Frost API'
   s.authors     = ['Donald Smith']

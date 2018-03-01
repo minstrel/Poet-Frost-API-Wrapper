@@ -164,31 +164,54 @@ module PoetFrostAPI
     args[:tags] ||= ''
     req.body = args.to_json
     res = PoetFrostConfig::FROST_HTTP.request(req)
-    # TODO if the model has a workId field defined, save the workId in that field
-    # If we're running in Rails, use example: @post.update_column(:author, "Donald")
-    # This saves and updates the timestamps.
-    # If we're not using Rails, just update the attribute.
-    # Now, how to tell if we're running in Rails?
-    # This checks for ActiveRecord instead of Rails, but that might be better even.
-    # if defined?(ActiveRecord::Base) && @post.is_a?(ActiveRecord::Base)
-    JSON.parse(res.body)['workId']
+    workid = JSON.parse(res.body)['workId']
+    # Check if we're running ActiveRecord, and post_to_poet is being run on an
+    # ActiveRecord object.
+    if defined?(ActiveRecord::Base) && self.is_a?(ActiveRecord::Base)
+      # Check if work_id is defined
+      if self.class.poet_frost_config.work_id
+        # Update the work_id column with the workId, preserve original timestamps.
+        work_id_column = self.class.poet_frost_config.work_id
+        self.update_column(work_id_column, workid)
+      end
+      # If we're not running ActiveRecord, return the workid.
+    else
+      workid
+    end
   rescue => e
     "failed #{e}"
   end
 
-  # TODO get_work
-  #
-  #def PoetFrostAPI.get_work(workId, args = {})
-  #  uri = @@uri + workId
-  #  req = Net::HTTP::Get.new(uri.path)
-  #  req.content_type = 'application/json'
-  #  args.keep_if { |k, v| [:api_key].include?(k) }
-  #  req['token'] = args[:api_key] || @@api_key
-  #  res = @@http.request(req)
-  #  JSON.parse(res.body)
-  #rescue => e
-  #  "failed #{e}"
-  #end
+  def get_work
+    frost_config = self.class.poet_frost_config 
+    work_id_column = frost_config.work_id
+    uri = PoetFrostConfig::FROST_URI + self[work_id_column].to_s
+    req = Net::HTTP::Get.new(uri.path)
+    req.content_type = 'application/json'
+    req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
+    res = PoetFrostConfig::FROST_HTTP.request(req)
+    res.body
+  rescue => e
+    "failed #{e}"
+  end
+
+  # TODO This should get moved to a class method.
+  # Will need to move it to a new module and extend the model with it.
+  # But that's another extend, so we need a way to call all the includes
+  # and extends at once.  Maybe an instance_eval from the main module?
+  # It's not pretty, but I can just put it in the PoetFrostConfig module
+  # and that will be mostly invisible to the user anyway.
+  def get_all_works
+    frost_config = self.class.poet_frost_config 
+    req = Net::HTTP::Get.new(PoetFrostConfig::FROST_URI.path)
+    req.content_type = 'application/json'
+    req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
+    res = PoetFrostConfig::FROST_HTTP.request(req)
+    res.body
+  rescue => e
+    "failed #{e}"
+  end
+
   # TODO get_all_works
   #
   #def PoetFrostAPI.get_all_works(args = {})
