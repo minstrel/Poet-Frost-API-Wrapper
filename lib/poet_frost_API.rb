@@ -2,16 +2,49 @@ require 'net/http'
 require 'json'
 require 'date'
 
+module PoetFrostConfig
+  attr_accessor :poet_frost_config
+
+  FROST_API_KEY = ENV['FROST_TOKEN']
+  FROST_URI = URI('https://api.frost.po.et/works/')
+  FROST_HTTP = Net::HTTP.new(FROST_URI.host, FROST_URI.port)
+  FROST_HTTP.use_ssl = true
+
+  def poet_frost_configuration
+    @poet_frost_config ||= OpenStruct.new(
+      name: nil,
+      datePublished: nil,
+      dateCreated: nil,
+      author: nil,
+      tags: nil,
+      content: nil,
+      api_key: nil,
+      work_id: nil
+    )
+  end
+
+  def poet_frost_configure
+    yield(poet_frost_configuration)
+  end
+end
+
 # To use any of the methods, register an API key at https://frost.po.et/
 # and save it as the environment variable FROST_TOKEN.
 # For the current easiest way to integrate to Rails, see the github readme
 # here: https://github.com/minstrel/Poet-Frost-API-Wrapper
 module PoetFrostAPI
 
+  # When PoetFrostAPI is included, extend the base class with the
+  # PoetFrostConfig module.
+  def self.included(base)
+    base.extend(PoetFrostConfig)
+  end
+
   @@api_key = ENV['FROST_TOKEN']
   @@uri = URI('https://api.frost.po.et/works/')
   @@http = Net::HTTP.new(@@uri.host, @@uri.port)
   @@http.use_ssl = true
+
 
   # Register a work on Po.et.
   #
@@ -92,36 +125,6 @@ module PoetFrostAPI
     "failed #{e}"
   end
 
-end
-
-module PoetFrostConfig
-  attr_accessor :poet_frost_config
-
-  FROST_API_KEY = ENV['FROST_TOKEN']
-  FROST_URI = URI('https://api.frost.po.et/works/')
-  FROST_HTTP = Net::HTTP.new(FROST_URI.host, FROST_URI.port)
-  FROST_HTTP.use_ssl = true
-
-  def poet_frost_configuration
-    @poet_frost_config ||= OpenStruct.new(
-      name: nil,
-      datePublished: nil,
-      dateCreated: nil,
-      author: nil,
-      tags: nil,
-      content: nil,
-      api_key: nil,
-      work_id: nil
-    )
-  end
-
-  def poet_frost_configure
-    yield(poet_frost_configuration)
-  end
-end
-
-module PoetFrostAPI
-
   # Post the work to Po.et
   def post_to_poet
     req = Net::HTTP::Post.new(PoetFrostConfig::FROST_URI.path)
@@ -156,8 +159,18 @@ module PoetFrostAPI
                            :tags,
                            :content,
                            :api_key].include?(k) }
-    # Set the token field to the api_key field if it exists, then delete it so it doesn't get passed on.
-    req['token'] = args[:api_key] || PoetFrostConfig::FROST_API_KEY
+    # Use the referenced model field, if set.  Else use the string value, if it exists.  Else use
+    # the environment variable.
+    # TODO test, such as with a Blog model that belongs_to User, and has user.frost_key set in the config.
+    frost_config = self.class.poet_frost_config 
+    req['token'] = if self.class.method_defined? frost_config[:api_key].to_s
+                     self.instance_eval(frost_config[:api_key])
+                   elsif frost_config[:api_key]
+                     frost_config[:api_key]
+                   else
+                     PoetFrostConfig::FROST_API_KEY
+                   end
+    # req['token'] = args[:api_key] || PoetFrostConfig::FROST_API_KEY
     args.delete(:api_key) if args[:api_key]
     args[:datePublished] ||= DateTime.now.iso8601
     args[:dateCreated] ||= DateTime.now.iso8601
@@ -188,40 +201,43 @@ module PoetFrostAPI
     uri = PoetFrostConfig::FROST_URI + self[work_id_column].to_s
     req = Net::HTTP::Get.new(uri.path)
     req.content_type = 'application/json'
-    req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
+    # Use the referenced model field, if set.  Else use the string value, if it exists.  Else use
+    # the environment variable.
+    # TODO test, such as with a Blog model that belongs_to User, and has user.frost_key set in the config.
+    req['token'] = if self.class.method_defined? frost_config[:api_key].to_s
+      self.instance_eval(frost_config[:api_key])
+    elsif frost_config[:api_key]
+      frost_config[:api_key]
+    else
+      PoetFrostConfig::FROST_API_KEY
+    end
+    # req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
     res = PoetFrostConfig::FROST_HTTP.request(req)
     res.body
   rescue => e
     "failed #{e}"
   end
 
-  # TODO This should get moved to a class method.
-  # Will need to move it to a new module and extend the model with it.
-  # But that's another extend, so we need a way to call all the includes
-  # and extends at once.  Maybe an instance_eval from the main module?
-  # It's not pretty, but I can just put it in the PoetFrostConfig module
-  # and that will be mostly invisible to the user anyway.
   def get_all_works
     frost_config = self.class.poet_frost_config 
     req = Net::HTTP::Get.new(PoetFrostConfig::FROST_URI.path)
     req.content_type = 'application/json'
-    req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
+    # Use the referenced model field, if set.  Else use the string value, if it exists.  Else use
+    # the environment variable.
+    # TODO test, such as with a Blog model that belongs_to User, and has user.frost_key set in the config.
+    req['token'] = if self.class.method_defined? frost_config[:api_key].to_s
+                     self.instance_eval(frost_config[:api_key])
+                   elsif frost_config[:api_key]
+                     frost_config[:api_key]
+                   else
+                     PoetFrostConfig::FROST_API_KEY
+                   end
+    # req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
     res = PoetFrostConfig::FROST_HTTP.request(req)
     res.body
   rescue => e
     "failed #{e}"
   end
 
-  # TODO get_all_works
-  #
-  #def PoetFrostAPI.get_all_works(args = {})
-  #  req = Net::HTTP::Get.new(@@uri.path)
-  #  req.content_type = 'application/json'
-  #  args.keep_if { |k, v| [:api_key].include?(k) }
-  #  req['token'] = args[:api_key] || @@api_key
-  #  res = @@http.request(req)
-  #  JSON.parse(res.body)
-  #rescue => e
-  #  "failed #{e}"
-  #end
 end
+
