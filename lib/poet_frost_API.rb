@@ -2,6 +2,32 @@ require 'net/http'
 require 'json'
 require 'date'
 
+# Configuration module for use when poet_frost_API is called with include.
+# 
+# Include PoetFrostAPI and map the API fields to attributes of the local object.
+# In the example below, the content field is mapped to the local object's
+# body attribute.
+#
+# Usage example:
+# include PoetFrostAPI
+#
+# poet_frost_configure do |config|
+#   config.name = :name # Required
+#   config.datePublished = :updated_at
+#   config.dateCreated = :created_at
+#   config.author = :author # Required
+#   config.tags = :tags
+#   config.content = :body # Required
+#   config.work_id = :workid
+#   config.api_key = :frost_api_key
+# end
+#
+# API keys currently need to be manually registered at https://frost.po.et/
+#
+# In a Rails model like a blog post, you'll want to have :frost_api_key be a
+# linked attribute belonging to the user making the post, unless it's a single
+# user blog, in which case it might be easier to just set the FROST_TOKEN
+# environment variable.
 module PoetFrostConfig
   attr_accessor :poet_frost_config
 
@@ -30,8 +56,6 @@ end
 
 # To use any of the methods, register an API key at https://frost.po.et/
 # and save it as the environment variable FROST_TOKEN.
-# For the current easiest way to integrate to Rails, see the github readme
-# here: https://github.com/minstrel/Poet-Frost-API-Wrapper
 module PoetFrostAPI
 
   # When PoetFrostAPI is included, extend the base class with the
@@ -126,6 +150,21 @@ module PoetFrostAPI
   end
 
   # Post the work to Po.et
+  # Usage example:
+  # @blog_post.post_to_poet
+  #
+  # This will post the object's linked fields to Po.et (see the module
+  # PoetFrostConfig for configuration)
+  #
+  # If the class is an ActiveRecord object, and the work_id field is present,
+  # the object will be updated with the work_id returned (without altering
+  # timestamps).  Otherwise, the method will return the work_id.
+  #
+  # If the configuration includes an API key field, that will be used when
+  # posting.  Otherwise, it will look for and use the environment variable
+  # FROST_TOKEN.
+  #
+  # Dates will default to the current time if not set in config.
   def post_to_poet
     req = Net::HTTP::Post.new(PoetFrostConfig::FROST_URI.path)
     req.content_type = 'application/json'
@@ -170,7 +209,6 @@ module PoetFrostAPI
                    else
                      PoetFrostConfig::FROST_API_KEY
                    end
-    # req['token'] = args[:api_key] || PoetFrostConfig::FROST_API_KEY
     args.delete(:api_key) if args[:api_key]
     args[:datePublished] ||= DateTime.now.iso8601
     args[:dateCreated] ||= DateTime.now.iso8601
@@ -195,6 +233,13 @@ module PoetFrostAPI
     "failed #{e}"
   end
 
+  # Retrieve a specific work from Po.et, using the workId returned from
+  # create_work.
+  #
+  # Usage example:
+  # @blog_post.get_work
+  #
+  # Returns a hash with the created fields.
   def get_work
     frost_config = self.class.poet_frost_config 
     work_id_column = frost_config.work_id
@@ -211,13 +256,18 @@ module PoetFrostAPI
     else
       PoetFrostConfig::FROST_API_KEY
     end
-    # req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
     res = PoetFrostConfig::FROST_HTTP.request(req)
     res.body
   rescue => e
     "failed #{e}"
   end
 
+  # Retrieve all works submitted by your Frost API Token.
+  #
+  # Usage example:
+  # @user.get_all_works
+  #
+  # Returns an array of individual works (hashes)
   def get_all_works
     frost_config = self.class.poet_frost_config 
     req = Net::HTTP::Get.new(PoetFrostConfig::FROST_URI.path)
@@ -232,7 +282,6 @@ module PoetFrostAPI
                    else
                      PoetFrostConfig::FROST_API_KEY
                    end
-    # req['token'] = frost_config[:api_key] || PoetFrostConfig::FROST_API_KEY 
     res = PoetFrostConfig::FROST_HTTP.request(req)
     res.body
   rescue => e
