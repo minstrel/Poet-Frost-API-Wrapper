@@ -66,9 +66,32 @@ module PoetFrostAPI
 
   @@api_key = ENV['FROST_TOKEN']
   @@uri = URI('https://api.frost.po.et/works/')
+  @@create_token_uri = URI('https://api.frost.po.et/tokens/')
   @@http = Net::HTTP.new(@@uri.host, @@uri.port)
   @@http.use_ssl = true
 
+
+  # Create an API Token
+  #
+  # Usage:
+  # PoetFrostAPI.create_token
+  #
+  # Requires an existing master API token created at frost.po.et
+  # api_key will default to ENV['FROST_TOKEN'] if omitted
+  # Returns a string with the created token
+  # TODO waiting for assistance - this is returning '765: unexpected token at 'The token does not have sufficient permissions for this action.'
+  def PoetFrostAPI.create_token(args = {})
+
+    req = Net::HTTP::Post.new(@@create_token_uri.path)
+    req.content_type = 'application/json'
+    args.keep_if { |k, v| [:api_key].include?(k) }
+    req['token'] = args[:api_key] || @@api_key
+    req.body = args.to_json
+    res = @@http.request(req)
+    JSON.parse(res.body)
+  rescue => e
+    "failed #{e}"
+  end
 
   # Register a work on Po.et.
   #
@@ -102,6 +125,8 @@ module PoetFrostAPI
     args[:datePublished] ||= DateTime.now.iso8601
     args[:dateCreated] ||= DateTime.now.iso8601
     args[:tags] ||= ''
+    # TODO the :api_key is getting passed in to req.body if it's defined -
+    # need to instead delete it from args after setting req['token']
     req.body = args.to_json
     res = @@http.request(req)
     JSON.parse(res.body)['workId']
