@@ -67,28 +67,43 @@ module PoetFrostAPI
   @@api_key = ENV['FROST_TOKEN']
   @@uri = URI('https://api.frost.po.et/works/')
   @@create_token_uri = URI('https://api.frost.po.et/tokens/')
+  @@login_uri = URI('https://api.frost.po.et/login/')
   @@http = Net::HTTP.new(@@uri.host, @@uri.port)
   @@http.use_ssl = true
 
+
+  # Log in and get master API / session key (use with ::create_token).
+  # Key is good for 24 hours.
+  #
+  # Usage PoetFrostAPI.get_session_key(email: user@domain, password: password)
+  #
+  # Requires a login and password at frost.po.et.
+  def PoetFrostAPI.get_session_key(args = {})
+    req = Net::HTTP::Post.new(@@login_uri.path)
+    req.content_type = 'application/json'
+    args.keep_if { |k, v| [:email, :password].include?(k) }
+    req.body = args.to_json
+    res = @@http.request(req)
+    JSON.parse(res.body)
+  end
 
   # Create an API Token
   #
   # Usage:
   # PoetFrostAPI.create_token
   #
-  # Requires an existing master API token created at frost.po.et
-  # api_key will default to ENV['FROST_TOKEN'] if omitted
+  # Requires an existing master API token generated via ::get_session_key
+  #
+  # This token must be explicitly passed in to args as :api_key.
+  #
   # Returns a string with the created token
-  # TODO waiting for assistance - this is returning '765: unexpected token at 'The token does not have sufficient permissions for this action.'
   def PoetFrostAPI.create_token(args = {})
-
     req = Net::HTTP::Post.new(@@create_token_uri.path)
     req.content_type = 'application/json'
     args.keep_if { |k, v| [:api_key].include?(k) }
-    req['token'] = args[:api_key] || @@api_key
-    req.body = args.to_json
+    req['token'] = args[:api_key]
     res = @@http.request(req)
-    JSON.parse(res.body)
+    JSON.parse(res.body)['apiToken']
   rescue => e
     "failed #{e}"
   end
